@@ -7,9 +7,9 @@ of seven class categories. There are nine predictors, including the refractive
 index and percentages of eight elements: Na, Mg, Al, Si, K, Ca, Ba, and Fe.
 The data can be accessed via:
 
-> library(mlbench)
-> data(Glass)
-> str(Glass)
+ library(mlbench)
+ data(Glass)
+ str(Glass)
 'data.frame': 214 obs. of 10 variables:
 $ RI : num 1.52 1.52 1.52 1.52 1.52 ...
 $ Na : num 13.6 13.9 13.5 13.2 13.3 ...
