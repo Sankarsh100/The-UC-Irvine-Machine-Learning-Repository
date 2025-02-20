@@ -1,0 +1,147 @@
+---
+title: "SYST 568 Assignment 1"
+author: "Sankarsh Govind Sanap"
+date: "2025-02-20"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+**3.1**
+
+The UC Irvine Machine Learning Repository contains a data set related to glass identification. The data consist of 214 glass samples labeled as one of seven class categories. There are nine predictors, including the refractive index and percentages of eight elements: Na, Mg, Al, Si, K, Ca, Ba, and Fe.
+
+**a)** Using visualizations, explore the predictor variables to understand their distributions as well as the relationships between predictors.
+
+```{r}
+
+library(mlbench) 
+library(tidyverse)
+library(corrplot)
+library(e1071)
+library(caret)
+data(Glass)
+
+Glass %>%
+  keep(is.numeric) %>%
+  gather() %>%
+  ggplot(aes(value)) + 
+  geom_histogram(bins = 15) + 
+  facet_wrap(~key, scales = 'free') +
+  ggtitle("Histograms of Numerical Predictors")
+
+Glass %>%
+  keep(is.numeric) %>%
+  gather() %>%
+  ggplot(aes(value)) + 
+  geom_boxplot() + 
+  facet_wrap(~key, scales = 'free') +
+  ggtitle("Boxplots of Numerical Predictors")
+
+Glass %>%
+  keep(is.numeric) %>%
+  cor() %>%
+  corrplot() 
+
+Glass %>%
+  ggplot() +
+  geom_bar(aes(x = Type)) +
+  ggtitle("Distribution of Types of Glass")
+
+```
+
+It can be seen that: \* Al is slightly right skewed \* Ba is right skewed and mostly centered around 0 \* Ca is right skewed \* Fe is right skewed and mostly centered around 0 \* K is right skewed \* Mg is left skewed and bimodal \* Na is almost normal with a slight right tail \* RI is right skewed \* Si is left skewed \* Type is mostly centered around Types 1,2, and 7
+
+There also seems to be a strong positive correlation between RI and Ca. There are also notable negative correlations between RI and Si, Al and Mg, Ca and Mg, Ba and Mg. There is also notable positive correlations between Ba and Al.
+
+**b)** Do there appear to be any outliers in the data? Are any predictors skewed?
+
+There seems to be outliers in Ba, K, RI, Ca, Fe, and possibly Na. There are some predictors that are skewed as mentioned in 3.1.a
+
+```{r}
+library(e1071)
+Glass %>%
+  keep(is.numeric) %>%
+  apply(., 2, skewness) %>%
+  round(4)
+```
+
+**c)**Are there any relevant transformations of one or more predictors that might improve the classification model?
+
+Since Be, Fe, and Khave a strong right skewness with a concentrations of points with low values, they may benefit from a log transformation. Mg may also be log transformed since it is left skewed. The table below shows the optimal lambdas. RI can be inverse squared while Si can be squared. Al can be square rooted. It would also be interesting to see how the model performs without Ca as it has correlations with other variables.
+
+```{r}
+library(caret)
+Glass %>%
+  keep(is.numeric) %>%
+  mutate_all(funs(BoxCoxTrans(.)$lambda)) %>%
+  head(1)
+```
+
+**3.2**
+
+The soybean data can also be found at the UC Irvine Machine Learning Repository. Data were collected to predict disease in 683 soybeans. The 35 predictors are mostly categorical and include information on the environmental conditions (e.g., temperature, precipitation) and plant conditions (e.g., left spots, mold growth). The outcome labels consist of 19 distinct classes.
+
+a)Investigate the frequency distributions for the categorical predictors. Are any of the distributions degenerate in the ways discussed earlier in this chapter?
+
+```{r}
+data(Soybean)
+
+columns <- colnames(Soybean)
+
+lapply(columns,
+  function(col) {
+    ggplot(Soybean, 
+           aes_string(col)) + geom_bar() + coord_flip() + ggtitle(col)})
+
+```
+
+Degenerate distributions are ones that take on one possible value. mycelium and sclerotia seem to be degenerate. leaf.mild and leaf.malf seem to also almost one-sided when you discount the missing values.
+
+**b)**Roughly 18 % of the data are missing. Are there particular predictors that are more likely to be missing? Is the pattern of missing data related to the classes?
+
+```{r}
+Soybean %>%
+  summarise_all(list(~is.na(.)))%>%
+  pivot_longer(everything(), names_to = "variables", values_to="missing") %>%
+  count(variables, missing) %>%
+  ggplot(aes(y = variables, x=n, fill = missing))+
+  geom_col(position = "fill") +
+  labs(title = "Proportion of Missing Values",
+       x = "Proportion") +
+  scale_fill_manual(values=c("grey","red"))
+
+```
+
+```{r}
+Soybean %>%
+  group_by(Class) %>%
+  mutate(class_Total = n()) %>%
+  ungroup() %>%
+  filter(!complete.cases(.)) %>%
+  group_by(Class) %>%
+  mutate(Missing = n(),
+         Proportion =  Missing / class_Total) %>% 
+  ungroup()%>%
+  select(Class, Proportion) %>%
+  distinct()
+
+```
+
+```{r}
+Soybean %>%
+  filter(!Class %in% c("phytophthora-rot", "diaporthe-pod-&-stem-blight", "cyst-nematode",
+                       "2-4-d-injury", "herbicide-injury")) %>%
+  summarise_all(list(~is.na(.)))%>%
+  pivot_longer(everything(), names_to = "variables", values_to="missing") %>%
+  count(variables, missing) %>%
+  ggplot(aes(y = variables, x=n, fill = missing))+
+  geom_col(position = "fill") +
+  labs(title = "Proportion of Missing Values with Missing Classes Removed",
+       x = "Proportion") +
+  scale_fill_manual(values=c("grey","red"))
+
+```
+
+There does seem to be a pattern in that some of the cases that are missing data are affiliated with certain cases. After those five classes were removed from the data, there seems to be no missing data.
+
